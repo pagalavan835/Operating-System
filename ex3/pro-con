@@ -1,0 +1,105 @@
+[24bcs054@mepcolinux ex3]$cat writer.c
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#define SIZE 10
+struct CircularBuffer {
+    int data[SIZE];
+    int write_index;
+    int read_index;
+    int item_count;
+};
+int main() {
+    int shmid;
+    struct CircularBuffer *buf;
+    int i, num;
+    shmid = shmget(55555, sizeof(struct CircularBuffer), IPC_CREAT | 0666);
+    if (shmid == -1) {
+        perror("shmget");
+        return 1;
+    }
+    buf = (struct CircularBuffer*)shmat(shmid, NULL, 0);
+    if (buf == (void*)-1) {
+        perror("shmat");
+        return 1;
+    }
+    buf->write_index = 0;
+    buf->read_index = 0;
+    buf->item_count = 0;
+    for (i = 0; i < SIZE; i++) {
+        printf("Enter data: ");
+        if (scanf("%d", &num) != 1) break; 
+        buf->data[buf->write_index] = num;
+        buf->write_index = (buf->write_index + 1) % SIZE;
+        buf->item_count++;
+    }
+    shmdt(buf);
+    return 0;
+}
+
+[24bcs054@mepcolinux ex3]$cat reader.c
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <unistd.h>
+#define SIZE 10
+struct CircularBuffer {
+    int data[SIZE];
+    int write_index;
+    int read_index;
+    int item_count;
+};
+int main() {
+    int shmid;
+    struct CircularBuffer *buf;
+    int num;
+    shmid = shmget(55555, sizeof(struct CircularBuffer), 0666);
+    if (shmid == -1) {
+        perror("shmget");
+        return 1;
+    }
+    buf = (struct CircularBuffer*)shmat(shmid, NULL, 0);
+    if (buf == (void*)-1) {
+        perror("shmat");
+        return 1;
+    }
+    printf("Reading data from shared memory:\n");
+    while (buf->item_count > 0) {
+        num = buf->data[buf->read_index];
+        printf("Consumed: %d\n", num);
+        buf->read_index = (buf->read_index + 1) % SIZE;
+        buf->item_count--;
+    }
+    shmctl(shmid, IPC_RMID, NULL);
+    shmdt(buf);
+    return 0;
+}
+
+[24bcs054@mepcolinux ex3]$gcc writer.c -o writer
+[24bcs054@mepcolinux ex3]$gcc reader.c -o reader
+[24bcs054@mepcolinux ex3]$./writer
+Enter data: 12
+Enter data: 232
+Enter data: 564
+Enter data: 234
+Enter data: 523
+Enter data: 54
+Enter data: 121
+Enter data: 65
+Enter data: 75
+Enter data: 32
+[24bcs054@mepcolinux ex3]$./reader
+Reading data from shared memory:
+Consumed: 12
+Consumed: 232
+Consumed: 564
+Consumed: 234
+Consumed: 523
+Consumed: 54
+Consumed: 121
+Consumed: 65
+Consumed: 75
+Consumed: 32
