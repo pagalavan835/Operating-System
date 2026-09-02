@@ -1,0 +1,592 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+
+struct Process
+{
+    int pid;
+    int at;  // Arrival Time
+    int bt;  // Burst Time
+    int wt;  // Waiting Time
+    int tat; // Turnaround Time
+    int priority;
+};
+
+/* FCFS Scheduling */
+void fcfs(struct Process p[], int n)
+{
+    int i, j;
+    struct Process temp;
+    float avgwt = 0, avgtat = 0;
+
+    // Sort by Arrival Time first
+    for(i = 0; i < n-1; i++)
+    {
+        for(j = i+1; j < n; j++)
+        {
+            if(p[i].at > p[j].at)
+            {
+                temp = p[i];
+                p[i] = p[j];
+                p[j] = temp;
+            }
+        }
+    }
+
+    int current_time = 0;
+    printf("\n\nFCFS Scheduling");
+    printf("\nPID\tAT\tBT\tWT\tTAT\n");
+
+    for(i = 0; i < n; i++)
+    {
+        if(current_time < p[i].at)
+            current_time = p[i].at;
+
+        p[i].wt = current_time - p[i].at;
+        p[i].tat = p[i].wt + p[i].bt;
+        current_time += p[i].bt;
+
+        avgwt += p[i].wt;
+        avgtat += p[i].tat;
+
+        printf("%d\t%d\t%d\t%d\t%d\n", p[i].pid, p[i].at, p[i].bt, p[i].wt, p[i].tat);
+    }
+
+    printf("Average Waiting Time = %.2f\n", avgwt/n);
+    printf("Average Turnaround Time = %.2f\n", avgtat/n);
+}
+
+/* Non-Preemptive SJF Scheduling */
+void sjfNonPreemptive(struct Process p[], int n)
+{
+    int i;
+    float avgwt = 0, avgtat = 0;
+    int completed = 0, current_time = 0;
+    int is_completed[20] = {0};
+
+    printf("\n\nNon-Preemptive SJF Scheduling");
+    printf("\nPID\tAT\tBT\tWT\tTAT\n");
+
+    while(completed < n)
+    {
+        int idx = -1;
+        int min_bt = INT_MAX;
+
+        for(i = 0; i < n; i++)
+        {
+            if(p[i].at <= current_time && is_completed[i] == 0)
+            {
+                if(p[i].bt < min_bt)
+                {
+                    min_bt = p[i].bt;
+                    idx = i;
+                }
+                if(p[i].bt == min_bt)
+                {
+                    if(idx != -1 && p[i].at < p[idx].at)
+                        idx = i;
+                }
+            }
+        }
+
+        if(idx != -1)
+        {
+            p[idx].wt = current_time - p[idx].at;
+            p[idx].tat = p[idx].wt + p[idx].bt;
+            current_time += p[idx].bt;
+            is_completed[idx] = 1;
+            completed++;
+
+            avgwt += p[idx].wt;
+            avgtat += p[idx].tat;
+
+            printf("%d\t%d\t%d\t%d\t%d\n", p[idx].pid, p[idx].at, p[idx].bt, p[idx].wt, p[idx].tat);
+        }
+        else
+        {
+            current_time++;
+        }
+    }
+
+    printf("Average Waiting Time = %.2f\n", avgwt/n);
+    printf("Average Turnaround Time = %.2f\n", avgtat/n);
+}
+
+/* Preemptive SJF (SRTF) Scheduling */
+void sjfPreemptive(struct Process p[], int n)
+{
+    int rem_bt[20];
+    int i;
+    for(i = 0; i < n; i++) rem_bt[i] = p[i].bt;
+
+    int completed = 0, current_time = 0;
+    float avgwt = 0, avgtat = 0;
+    int min_bt = INT_MAX;
+    int shortest = 0;
+    int check = 0;
+
+    printf("\n\nPreemptive SJF (SRTF) Scheduling");
+    printf("\nPID\tAT\tBT\tWT\tTAT\n");
+
+    while(completed != n)
+    {
+        min_bt = INT_MAX;
+        check = 0;
+
+        for(i = 0; i < n; i++)
+        {
+            if((p[i].at <= current_time) && (rem_bt[i] < min_bt) && rem_bt[i] > 0)
+            {
+                min_bt = rem_bt[i];
+                shortest = i;
+                check = 1;
+            }
+        }
+
+        if(check == 0)
+        {
+            current_time++;
+            continue;
+        }
+
+        rem_bt[shortest]--;
+
+        if(rem_bt[shortest] == 0)
+        {
+            completed++;
+            p[shortest].tat = current_time + 1 - p[shortest].at;
+            p[shortest].wt = p[shortest].tat - p[shortest].bt;
+
+            avgwt += p[shortest].wt;
+            avgtat += p[shortest].tat;
+
+            printf("%d\t%d\t%d\t%d\t%d\n", p[shortest].pid, p[shortest].at, p[shortest].bt, p[shortest].wt, p[shortest].tat);
+        }
+        current_time++;
+    }
+
+    printf("Average Waiting Time = %.2f\n", avgwt/n);
+    printf("Average Turnaround Time = %.2f\n", avgtat/n);
+}
+
+/* Non-Preemptive Priority Scheduling */
+void priorityNonPreemptive(struct Process p[], int n)
+{
+    int i;
+    float avgwt = 0, avgtat = 0;
+    int completed = 0, current_time = 0;
+    int is_completed[20] = {0};
+
+    printf("\n\nNon-Preemptive Priority Scheduling (Lower value = Higher Priority)");
+    printf("\nPID\tAT\tBT\tPriority\tWT\tTAT\n");
+
+    while(completed < n)
+    {
+        int idx = -1;
+        int highest_priority = INT_MAX;
+
+        for(i = 0; i < n; i++)
+        {
+            if(p[i].at <= current_time && is_completed[i] == 0)
+            {
+                if(p[i].priority < highest_priority)
+                {
+                    highest_priority = p[i].priority;
+                    idx = i;
+                }
+                if(p[i].priority == highest_priority)
+                {
+                    if(idx != -1 && p[i].at < p[idx].at)
+                        idx = i;
+                }
+            }
+        }
+
+        if(idx != -1)
+        {
+            p[idx].wt = current_time - p[idx].at;
+            p[idx].tat = p[idx].wt + p[idx].bt;
+            current_time += p[idx].bt;
+            is_completed[idx] = 1;
+            completed++;
+
+            avgwt += p[idx].wt;
+            avgtat += p[idx].tat;
+
+            printf("%d\t%d\t%d\t%d\t\t%d\t%d\n", p[idx].pid, p[idx].at, p[idx].bt, p[idx].priority, p[idx].wt, p[idx].tat);
+        }
+        else
+        {
+            current_time++;
+        }
+    }
+
+    printf("Average Waiting Time = %.2f\n", avgwt/n);
+    printf("Average Turnaround Time = %.2f\n", avgtat/n);
+}
+
+/* Preemptive Priority Scheduling */
+void priorityPreemptive(struct Process p[], int n)
+{
+    int rem_bt[20];
+    int i;
+    for(i = 0; i < n; i++) rem_bt[i] = p[i].bt;
+
+    int completed = 0, current_time = 0;
+    float avgwt = 0, avgtat = 0;
+    int highest_priority = INT_MAX;
+    int chosen = 0;
+    int check = 0;
+
+    printf("\n\nPreemptive Priority Scheduling (Lower value = Higher Priority)");
+    printf("\nPID\tAT\tBT\tPriority\tWT\tTAT\n");
+
+    while(completed != n)
+    {
+        highest_priority = INT_MAX;
+        check = 0;
+
+        for(i = 0; i < n; i++)
+        {
+            if((p[i].at <= current_time) && (p[i].priority < highest_priority) && rem_bt[i] > 0)
+            {
+                highest_priority = p[i].priority;
+                chosen = i;
+                check = 1;
+            }
+        }
+
+        if(check == 0)
+        {
+            current_time++;
+            continue;
+        }
+
+        rem_bt[chosen]--;
+
+        if(rem_bt[chosen] == 0)
+        {
+            completed++;
+            p[chosen].tat = current_time + 1 - p[chosen].at;
+            p[chosen].wt = p[chosen].tat - p[chosen].bt;
+
+            avgwt += p[chosen].wt;
+            avgtat += p[chosen].tat;
+
+            printf("%d\t%d\t%d\t%d\t\t%d\t%d\n", p[chosen].pid, p[chosen].at, p[chosen].bt, p[chosen].priority, p[chosen].wt, p[chosen].tat);
+        }
+        current_time++;
+    }
+
+    printf("Average Waiting Time = %.2f\n", avgwt/n);
+    printf("Average Turnaround Time = %.2f\n", avgtat/n);
+}
+
+/* Round Robin Scheduling */
+void roundRobin(struct Process p[], int n, int tq)
+{
+    int rem_bt[20];
+    int i, time = 0, done;
+    float avgwt = 0, avgtat = 0;
+
+    for(i = 0; i < n; i++)
+        rem_bt[i] = p[i].bt;
+
+    do
+    {
+        done = 1;
+
+        for(i = 0; i < n; i++)
+        {
+            if(rem_bt[i] > 0)
+            {
+                done = 0;
+
+                if(rem_bt[i] > tq)
+                {
+                    time += tq;
+                    rem_bt[i] -= tq;
+                }
+                else
+                {
+                    time += rem_bt[i];
+                    p[i].tat = time - p[i].at;
+                    p[i].wt = p[i].tat - p[i].bt;
+                    rem_bt[i] = 0;
+                }
+            }
+        }
+    } while(done == 0);
+
+    printf("\n\nRound Robin Scheduling");
+    printf("\nPID\tAT\tBT\tWT\tTAT\n");
+
+    for(i = 0; i < n; i++)
+    {
+        avgwt += p[i].wt;
+        avgtat += p[i].tat;
+
+        printf("%d\t%d\t%d\t%d\t%d\n", p[i].pid, p[i].at, p[i].bt, p[i].wt, p[i].tat);
+    }
+
+    printf("Average Waiting Time = %.2f\n", avgwt/n);
+    printf("Average Turnaround Time = %.2f\n", avgtat/n);
+}
+
+int main()
+{
+    int n = 0, i, tq, choice;
+    struct Process p[20], temp_p[20];
+    int data_entered = 0;
+
+    while(1) 
+    {
+        printf("\n======= Main Scheduling Menu =======");
+        printf("\n1. Enter / Change Process Data");
+        printf("\n2. First Come First Served (FCFS)");
+        printf("\n3. Shortest Job First (Non-Preemptive)");
+        printf("\n4. Shortest Job First (Preemptive / SRTF)");
+        printf("\n5. Priority Scheduling (Non-Preemptive)");
+        printf("\n6. Priority Scheduling (Preemptive)");
+        printf("\n7. Round Robin (RR)");
+        printf("\n8. Exit Program");
+        printf("\nEnter your choice (1-8): ");
+        
+        if (scanf("%d", &choice) != 1) 
+        {
+            break;
+        }
+
+        if(choice == 8) 
+        {
+            printf("\nExiting Program. Goodbye!\n");
+            break;
+        }
+
+        if(choice == 1)
+        {
+            printf("\nEnter the Number of Processes: ");
+            scanf("%d", &n);
+
+            for(i = 0; i < n; i++)
+            {
+                p[i].pid = i + 1;
+                printf("\nProcess %d\n", i + 1);
+
+                printf("Enter Arrival Time: ");
+                scanf("%d", &p[i].at);
+
+                printf("Enter Burst Time: ");
+                scanf("%d", &p[i].bt);
+
+                printf("Enter Priority: ");
+                scanf("%d", &p[i].priority);
+            }
+            data_entered = 1;
+            continue;
+        }
+
+        // Check if data exists before running simulation loops
+        if(!data_entered)
+        {
+            printf("\n[Error]: Please enter process data first (Option 1)!\n");
+            continue;
+        }for(i = 0; i < n; i++) {
+            temp_p[i] = p[i];
+        }
+
+        switch(choice) {
+            case 2:
+                fcfs(temp_p, n);
+                break;
+            case 3:
+                sjfNonPreemptive(temp_p, n);
+                break;
+            case 4:
+                sjfPreemptive(temp_p, n);
+                break;
+            case 5:
+                priorityNonPreemptive(temp_p, n);
+                break;
+            case 6:
+                priorityPreemptive(temp_p, n);
+                break;
+            case 7:
+                printf("Enter Time Quantum: ");
+                scanf("%d", &tq);
+                roundRobin(temp_p, n, tq);
+                break;
+            default:
+                printf("\n[Error]: Invalid choice! Please select between 1 and 8.\n");
+        }
+    }
+    return 0;
+}
+[24bcs054@mepcolinux ex4]$g++ ex4.c
+[24bcs054@mepcolinux ex4]$./a.out
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 1
+
+Enter the Number of Processes: 3
+
+Process 1
+Enter Arrival Time: 24
+Enter Burst Time: 5
+Enter Priority: 1
+
+Process 2
+Enter Arrival Time: 3
+Enter Burst Time: 3
+Enter Priority: 1
+
+Process 3
+Enter Arrival Time: 5
+Enter Burst Time: 2
+Enter Priority: 3
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 2
+
+
+FCFS Scheduling
+PID	AT	BT	WT	TAT
+2	3	3	0	3
+3	5	2	1	3
+1	24	5	0	5
+Average Waiting Time = 0.33
+Average Turnaround Time = 3.67
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 3
+
+
+Non-Preemptive SJF Scheduling
+PID	AT	BT	WT	TAT
+2	3	3	0	3
+3	5	2	1	3
+1	24	5	0	5
+Average Waiting Time = 0.33
+Average Turnaround Time = 3.67
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 4
+
+
+Preemptive SJF (SRTF) Scheduling
+PID	AT	BT	WT	TAT
+2	3	3	0	3
+3	5	2	1	3
+1	24	5	0	5
+Average Waiting Time = 0.33
+Average Turnaround Time = 3.67
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 5
+
+
+Non-Preemptive Priority Scheduling (Lower value = Higher Priority)
+PID	AT	BT	Priority	WT	TAT
+2	3	3	1		0	3
+3	5	2	3		1	3
+1	24	5	1		0	5
+Average Waiting Time = 0.33
+Average Turnaround Time = 3.67
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 6
+
+
+Preemptive Priority Scheduling (Lower value = Higher Priority)
+PID	AT	BT	Priority	WT	TAT
+2	3	3	1		0	3
+3	5	2	3		1	3
+1	24	5	1		0	5
+Average Waiting Time = 0.33
+Average Turnaround Time = 3.67
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 7
+Enter Time Quantum: 3
+
+
+Round Robin Scheduling
+PID	AT	BT	WT	TAT
+1	24	5	-19	-14
+2	3	3	0	3
+3	5	2	1	3
+Average Waiting Time = -6.00
+Average Turnaround Time = -2.67
+
+======= Main Scheduling Menu =======
+1. Enter / Change Process Data
+2. First Come First Served (FCFS)
+3. Shortest Job First (Non-Preemptive)
+4. Shortest Job First (Preemptive / SRTF)
+5. Priority Scheduling (Non-Preemptive)
+6. Priority Scheduling (Preemptive)
+7. Round Robin (RR)
+8. Exit Program
+Enter your choice (1-8): 8
+
+Exiting Program. Goodbye!
+}
+
+
+
