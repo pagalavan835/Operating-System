@@ -1,0 +1,40 @@
+class Solution {
+public:
+    vector<int> assignTasks(vector<int>& servers, vector<int>& tasks) {
+
+        int n = servers.size();
+        vector<int> ans;
+        
+        priority_queue<tuple<int, int, int>, vector<tuple<int, int, int>>, greater<tuple<int, int, int>>> busy_servers;
+
+        priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> free_servers;
+
+        for (int i = 0; i < n; ++i) {
+            free_servers.push({servers[i], i});
+        }
+
+        for (int time = 0; time < tasks.size(); ++time) {
+
+            while (!busy_servers.empty()) {
+                auto [sec, wgt, idx] = busy_servers.top();
+                if (sec > time) break;
+
+                busy_servers.pop();
+                free_servers.push({wgt, idx});}
+
+            if (free_servers.empty()) {
+                auto [sec, wgt, idx] = busy_servers.top();
+                busy_servers.pop();
+                busy_servers.push({sec + tasks[time], wgt, idx});
+                ans.push_back(idx);} 
+                
+            else {
+                auto [wgt, idx] = free_servers.top();
+                free_servers.pop();
+                busy_servers.push({time + tasks[time], wgt, idx});
+                ans.push_back(idx);}
+        }
+
+        return ans;
+    }
+};
