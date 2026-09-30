@@ -1,0 +1,229 @@
+[24bcs054@mepcolinux ex8]$cat ex1.c
+#include <stdio.h>
+
+#define MAX_PAGES 20
+
+// Structure to store page mapping
+typedef struct {
+    int page;
+    int frame;
+} PageTableEntry;
+
+int main() {
+    int processSize, pageSize, totalPages, internalFrag;
+    int choice, logicalAddress, pageNumber, offset, physicalAddress;
+    PageTableEntry pt[MAX_PAGES];
+
+    printf("=========================================\n");
+    printf("         MEMORY PAGING SIMULATION        \n");
+    printf("=========================================\n");
+    
+    printf("Enter process size (in bytes): ");
+    scanf("%d", &processSize);
+    
+    printf("Enter page size (in bytes): ");
+    scanf("%d", &pageSize);
+
+    // Calculate total pages needed and internal fragmentation
+    totalPages = (processSize + pageSize - 1) / pageSize;
+    internalFrag = (totalPages * pageSize) - processSize;
+
+    if (totalPages > MAX_PAGES) {
+        printf("\n[Error] Process requires too many pages. Maximum allowed is %d.\n", MAX_PAGES);
+        return 1;
+    }
+
+    // Initialize page table mappings
+    printf("\n--- Map Pages to Frames ---\n");
+    for (int i = 0; i < totalPages; i++) {
+        pt[i].page = i;
+        printf("Enter frame number for Page %d: ", i);
+        scanf("%d", &pt[i].frame);
+    }
+
+    // Main Interactive Menu Loop
+    do {
+        printf("\n=========================================\n");
+        printf("                MAIN MENU                \n");
+        printf("=========================================\n");
+        printf(" 1. View Page Table\n");
+        printf(" 2. View Memory Stats (Pages & Fragmentation)\n");
+        printf(" 3. Translate Logical to Physical Address\n");
+        printf(" 4. View Complete Overview\n");
+        printf(" 5. Exit Program\n");
+        printf("-----------------------------------------\n");
+        printf("Enter choice (1-5): ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                printf("\n[ PAGE TABLE ]\n");
+                printf("-----------------\n");
+                printf("| Page\t| Frame\t|\n");
+                printf("-----------------\n");
+                for (int i = 0; i < totalPages; i++) {
+                    printf("| %d\t| %d\t|\n", pt[i].page, pt[i].frame);
+                }
+                printf("-----------------\n");
+                break;
+
+            case 2:
+                printf("\n[ MEMORY STATS ]\n");
+                printf("Total Pages Allocated  : %d\n", totalPages);
+                printf("Internal Fragmentation : %d bytes\n", internalFrag);
+                break;
+
+            case 3:
+                printf("\n[ ADDRESS TRANSLATION ]\n");
+                printf("Enter logical address: ");
+                scanf("%d", &logicalAddress);
+
+                pageNumber = logicalAddress / pageSize;
+                offset = logicalAddress % pageSize;
+
+                if (pageNumber >= totalPages || logicalAddress < 0) {
+                    printf("\n[Error] Invalid Address! Out of process boundary.\n");
+                } else {
+                    physicalAddress = (pt[pageNumber].frame * pageSize) + offset;
+                    printf("\nResults:\n");
+                    printf(" -> Page Number      : %d\n", pageNumber);
+                    printf(" -> Offset           : %d\n", offset);
+                    printf(" -> Assigned Frame   : %d\n", pt[pageNumber].frame);
+                    printf(" => Physical Address : %d\n", physicalAddress);
+                }
+                break;
+
+            case 4:
+                printf("\n=========================================\n");
+                printf("            COMPLETE OVERVIEW            \n");
+                printf("=========================================\n");
+                printf("Process Size           : %d bytes\n", processSize);
+                printf("Page Size              : %d bytes\n", pageSize);
+                printf("Total Pages Allocated  : %d\n", totalPages);
+                printf("Internal Fragmentation : %d bytes\n", internalFrag);
+                
+                printf("\n[ Current Page Table ]\n");
+                printf("-----------------\n");
+                printf("| Page\t| Frame\t|\n");
+                printf("-----------------\n");
+                for (int i = 0; i < totalPages; i++) {
+                    printf("| %d\t| %d\t|\n", pt[i].page, pt[i].frame);
+                }
+                printf("-----------------\n");
+                break;
+
+            case 5:
+                printf("\nExiting program. Goodbye!\n");
+                break;
+
+            default:
+                printf("\n[Error] Invalid choice! Please select between 1 and 5.\n");
+        }
+    } while (choice != 5);
+
+    return 0;
+}
+[24bcs054@mepcolinux ex8]$g++ ex1.c
+[24bcs054@mepcolinux ex8]$./a.out
+=========================================
+         MEMORY PAGING SIMULATION        
+=========================================
+Enter process size (in bytes): 400
+Enter page size (in bytes): 100
+
+--- Map Pages to Frames ---
+Enter frame number for Page 0: 5
+Enter frame number for Page 1: 2
+Enter frame number for Page 2: 8
+Enter frame number for Page 3: 3
+
+=========================================
+                MAIN MENU                
+=========================================
+ 1. View Page Table
+ 2. View Memory Stats (Pages & Fragmentation)
+ 3. Translate Logical to Physical Address
+ 4. View Complete Overview
+ 5. Exit Program
+-----------------------------------------
+Enter choice (1-5): 2
+
+[ MEMORY STATS ]
+Total Pages Allocated  : 4
+Internal Fragmentation : 0 bytes
+
+=========================================
+                MAIN MENU                
+=========================================
+ 1. View Page Table
+ 2. View Memory Stats (Pages & Fragmentation)
+ 3. Translate Logical to Physical Address
+ 4. View Complete Overview
+ 5. Exit Program
+-----------------------------------------
+Enter choice (1-5): 1
+1
+[ PAGE TABLE ]
+-----------------
+| Page	| Frame	|
+-----------------
+| 0	| 5	|
+| 1	| 2	|
+| 2	| 8	|
+| 3	| 3	|
+-----------------
+
+=========================================
+                MAIN MENU                
+=========================================
+ 1. View Page Table
+ 2. View Memory Stats (Pages & Fragmentation)
+ 3. Translate Logical to Physical Address
+ 4. View Complete Overview
+ 5. Exit Program
+-----------------------------------------
+Enter choice (1-5): 3
+
+[Error] Invalid choice! Please select between 1 and 5.
+
+=========================================
+                MAIN MENU                
+=========================================
+ 1. View Page Table
+ 2. View Memory Stats (Pages & Fragmentation)
+ 3. Translate Logical to Physical Address
+ 4. View Complete Overview
+ 5. Exit Program
+-----------------------------------------
+Enter choice (1-5): 4
+
+=========================================
+            COMPLETE OVERVIEW            
+=========================================
+Process Size           : 400 bytes
+Page Size              : 100 bytes
+Total Pages Allocated  : 4
+Internal Fragmentation : 0 bytes
+
+[ Current Page Table ]
+-----------------
+| Page	| Frame	|
+-----------------
+| 0	| 5	|
+| 1	| 2	|
+| 2	| 8	|
+| 3	| 3	|
+-----------------
+
+=========================================
+                MAIN MENU                
+=========================================
+ 1. View Page Table
+ 2. View Memory Stats (Pages & Fragmentation)
+ 3. Translate Logical to Physical Address
+ 4. View Complete Overview
+ 5. Exit Program
+-----------------------------------------
+Enter choice (1-5): 5
+
+Exiting program. Goodbye!
