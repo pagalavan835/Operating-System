@@ -1,0 +1,301 @@
+[24bcs054@mepcolinux ex7]$cat ex1.c
+#include <stdio.h>
+#include <stdbool.h>
+
+#define LIMIT 20
+
+struct Partition {
+    int tag;         
+    int capacity;    
+    int vacant;      
+};
+
+// Refreshed modern UI styling for the metrics table
+void printMetrics(struct Partition parts[], int part_total, int jobs[], int job_total, int mappings[]) {
+    int inside_frag = 0;
+    int outside_frag = 0;
+    bool holds_skipped = false;
+    int untouched_memory = 0;
+
+    printf("\n============================================================== \n");
+    printf("                 MEMORY ALLOCATION REPORT                      \n");
+    printf("===============================================================\n");
+    printf(" Job ID       Demand Size    Assigned Slot   Internal Waste   \n");
+    printf("===============================================================\n");
+
+    int index = 0;
+    while (index < job_total) {
+        printf("  J%-9d   %-12d   ", index + 1, jobs[index]);
+
+        if (mappings[index] != -1) {
+            int slot = mappings[index];
+            int gap = parts[slot].vacant;
+            printf("Slot %-9d   %-15d  \n", parts[slot].tag, gap);
+        } else {
+            printf("Pending         -                \n");
+            holds_skipped = true;
+        }
+        index++;
+    }
+
+    for (int k = 0; k < part_total; k++) {
+        if (parts[k].vacant < parts[k].capacity) {
+            inside_frag += parts[k].vacant;
+        } else {
+            untouched_memory += parts[k].capacity;
+        }
+    }
+
+    if (holds_skipped) {
+        outside_frag = untouched_memory;
+    }
+
+    printf("\n");
+    printf(" Cumulative Internal Fragmentation : %-23d │\n", inside_frag);
+    printf(" Cumulative External Fragmentation : %-23d │\n", outside_frag);
+    printf("\n");
+}
+
+void orderPartitions(struct Partition parts[], int count, int sequence[], int strategy) {
+    int a = 0;
+    do {
+        sequence[a] = a;
+        a++;
+    } while (a < count);
+
+    if (strategy == 1) return;
+
+    int scan_a = 0;
+    while (scan_a < count - 1) {
+        int scan_b = 0;
+        while (scan_b < count - scan_a - 1) {
+            bool triggers_swap = false;
+
+            if (strategy == 2) {
+                triggers_swap = (parts[sequence[scan_b]].vacant > parts[sequence[scan_b + 1]].vacant);
+            } else if (strategy == 3) {
+                triggers_swap = (parts[sequence[scan_b]].vacant < parts[sequence[scan_b + 1]].vacant);
+            }
+
+            if (triggers_swap) {
+                int backup = sequence[scan_b];
+                sequence[scan_b] = sequence[scan_b + 1];
+                sequence[scan_b + 1] = backup;
+            }
+            scan_b++;
+        }
+        scan_a++;
+    }
+}
+
+void runAllocationEngine(struct Partition source_parts[], int part_total, int jobs[], int job_total, int strategy) {
+    struct Partition local_parts[LIMIT];
+    int mappings[LIMIT];
+    int sequence[LIMIT];
+
+    for (int m = 0; m < part_total; m++) {
+        local_parts[m] = source_parts[m];
+        local_parts[m].vacant = source_parts[m].capacity;
+    }
+
+    for (int n = 0; n < job_total; n++) {
+        mappings[n] = -1; // Fixed array assignment bug from string to integer
+    }
+
+    int job_idx = 0;
+    while (job_idx < job_total) {
+        orderPartitions(local_parts, part_total, sequence, strategy);
+
+        int search_idx = 0;
+        while (search_idx < part_total) {
+            int current_slot = sequence[search_idx];
+
+            if (local_parts[current_slot].vacant >= jobs[job_idx]) {
+                mappings[job_idx] = current_slot;
+                local_parts[current_slot].vacant -= jobs[job_idx];
+                break;
+            }
+            search_idx++;
+        }
+        job_idx++;
+    }
+
+    printMetrics(local_parts, part_total, jobs, job_total, mappings);
+}
+
+void executeFirstFit(struct Partition source[], int p_count, int requests[], int r_count) {
+    runAllocationEngine(source, p_count, requests, r_count, 1);
+}
+
+void executeBestFit(struct Partition source[], int p_count, int requests[], int r_count) {
+    runAllocationEngine(source, p_count, requests, r_count, 2);
+}
+
+void executeWorstFit(struct Partition source[], int p_count, int requests[], int r_count) {
+    runAllocationEngine(source, p_count, requests, r_count, 3);
+}
+
+int main() {
+    int total_slots, total_jobs, menu_select;
+    struct Partition memory_slots[LIMIT];
+    int job_requests[LIMIT];
+
+    printf("\n=== DYNAMIC MEMORY PARTITION MANAGEMENT ===\n");
+    printf("Enter total memory blocks: ");
+    scanf("%d", &total_slots);
+
+    printf("\nEnter capacity specifications for each block:\n");
+    for (int idx = 0; idx < total_slots; idx++) {
+        memory_slots[idx].tag = idx + 1;
+        printf("  Block [%d] Size: ", idx + 1);
+        scanf("%d", &memory_slots[idx].capacity);
+        memory_slots[idx].vacant = memory_slots[idx].capacity;
+    }
+
+    printf("\nEnter total incoming jobs: ");
+    scanf("%d", &total_jobs);
+
+    printf("\nEnter memory requirements for jobs:\n");
+    for (int idx = 0; idx < total_jobs; idx++) {
+        printf("  Job J[%d] Demand: ", idx + 1);
+        scanf("%d", &job_requests[idx]);
+    }
+
+    while (true) {
+        printf("\n=========================================\n");
+        printf("          MEMORY ALLOCATION HUB            \n");
+        printf("===========================================\n");
+        printf("  [1] Execute First-Fit Strategy           \n");
+        printf("  [2] Execute Best-Fit Strategy            \n");
+        printf("  [3] Execute Worst-Fit Strategy           \n");
+        printf("  [4] Exit Application                     \n");
+        printf("\n");
+        printf("Select option (1-4): ");
+        scanf("%d", &menu_select);
+
+        if (menu_select == 1) {
+            printf("\n>>> PROCESSING: FIRST-FIT ALLOCATION");
+            executeFirstFit(memory_slots, total_slots, job_requests, total_jobs);
+        } else if (menu_select == 2) {
+            printf("\n>>> PROCESSING: BEST-FIT ALLOCATION");
+            executeBestFit(memory_slots, total_slots, job_requests, total_jobs);
+        } else if (menu_select == 3) {
+            printf("\n>>> PROCESSING: WORST-FIT ALLOCATION");
+            executeWorstFit(memory_slots, total_slots, job_requests, total_jobs);
+        } else if (menu_select == 4) {
+            printf("\nShutting down allocation hub. Goodbye!\n");
+            break;
+        } else {
+            printf("[Error] Invalid selection. Please choose between 1 and 4.\n");
+        }
+    }
+
+    return 0;
+}
+
+[24bcs054@mepcolinux ex7]$g++ ex1.c
+[24bcs054@mepcolinux ex7]$./a.out
+
+=== DYNAMIC MEMORY PARTITION MANAGEMENT ===
+Enter total memory blocks: 4
+
+Enter capacity specifications for each block:
+  Block [1] Size: 100
+  Block [2] Size: 500
+  Block [3] Size: 200
+  Block [4] Size: 300
+
+Enter total incoming jobs: 4
+
+Enter memory requirements for jobs:
+  Job J[1] Demand: 212
+  Job J[2] Demand: 417
+  Job J[3] Demand: 112
+  Job J[4] Demand: 426
+
+=========================================
+          MEMORY ALLOCATION HUB            
+===========================================
+  [1] Execute First-Fit Strategy           
+  [2] Execute Best-Fit Strategy            
+  [3] Execute Worst-Fit Strategy           
+  [4] Exit Application                     
+
+Select option (1-4): 1
+
+>>> PROCESSING: FIRST-FIT ALLOCATION
+============================================================== 
+                 MEMORY ALLOCATION REPORT                      
+===============================================================
+ Job ID       Demand Size    Assigned Slot   Internal Waste   
+===============================================================
+  J1           212            Slot 2           176              
+  J2           417            Pending         -                
+  J3           112            Slot 2           176              
+  J4           426            Pending         -                
+
+ Cumulative Internal Fragmentation : 176                     │
+ Cumulative External Fragmentation : 600                     │
+
+
+=========================================
+          MEMORY ALLOCATION HUB            
+===========================================
+  [1] Execute First-Fit Strategy           
+  [2] Execute Best-Fit Strategy            
+  [3] Execute Worst-Fit Strategy           
+  [4] Exit Application                     
+
+Select option (1-4): 2
+
+>>> PROCESSING: BEST-FIT ALLOCATION
+============================================================== 
+                 MEMORY ALLOCATION REPORT                      
+===============================================================
+ Job ID       Demand Size    Assigned Slot   Internal Waste   
+===============================================================
+  J1           212            Slot 4           88               
+  J2           417            Slot 2           83               
+  J3           112            Slot 3           88               
+  J4           426            Pending         -                
+
+ Cumulative Internal Fragmentation : 259                     │
+ Cumulative External Fragmentation : 100                     │
+
+
+=========================================
+          MEMORY ALLOCATION HUB            
+===========================================
+  [1] Execute First-Fit Strategy           
+  [2] Execute Best-Fit Strategy            
+  [3] Execute Worst-Fit Strategy           
+  [4] Exit Application                     
+
+Select option (1-4): 3
+
+>>> PROCESSING: WORST-FIT ALLOCATION
+============================================================== 
+                 MEMORY ALLOCATION REPORT                      
+===============================================================
+ Job ID       Demand Size    Assigned Slot   Internal Waste   
+===============================================================
+  J1           212            Slot 2           288              
+  J2           417            Pending         -                
+  J3           112            Slot 4           188              
+  J4           426            Pending         -                
+
+ Cumulative Internal Fragmentation : 476                     │
+ Cumulative External Fragmentation : 300                     │
+
+
+=========================================
+          MEMORY ALLOCATION HUB            
+===========================================
+  [1] Execute First-Fit Strategy           
+  [2] Execute Best-Fit Strategy            
+  [3] Execute Worst-Fit Strategy           
+  [4] Exit Application                     
+
+Select option (1-4): 4
+
+Shutting down allocation hub. Goodbye!
